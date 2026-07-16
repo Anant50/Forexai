@@ -51,7 +51,7 @@ export default function Dashboard() {
         Promise.all(pairs.map(p => api.post("/intelligence/analyze/multi-model", { pair: p, timeframe: "1h" }).catch(()=>null)))
           .then((results) => {
             const mapped = results.map((res: any, idx: number) => {
-               if(!res) return { pair: pairs[idx], flag_left: "🇪🇺", flag_right: "🇺🇸", price: "Error", change: "0%", isUp: true, state: "NEUTRAL", conf: 50, link: pairs[idx] };
+               if(!res) return { pair: pairs[idx], flag_left: "🇪🇺", flag_right: "🇺🇸", price: "Error", change: "0%", isUp: true, state: "NEUTRAL", conf: 50, link: pairs[idx].replace("/", "_") };
                return {
                   pair: res.pair,
                   flag_left: "🌍", flag_right: "🌍",
