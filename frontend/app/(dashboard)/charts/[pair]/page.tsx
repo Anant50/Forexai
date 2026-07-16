@@ -76,6 +76,11 @@ export default function Charts() {
       borderVisible: false,
       wickUpColor: "#22C55E",
       wickDownColor: "#EF4444",
+      priceFormat: {
+        type: 'price',
+        precision: 5,
+        minMove: 0.00001,
+      },
     });
 
     let ws: WebSocket | null = null;
