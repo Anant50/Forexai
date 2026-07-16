@@ -12,6 +12,7 @@ import {
   Info,
   Sliders,
   Sparkles,
+  TrendingUp,
   X 
 } from "lucide-react";
 import { api } from "@/lib/api/apiClient";

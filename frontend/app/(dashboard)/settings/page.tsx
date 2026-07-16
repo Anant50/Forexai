@@ -27,9 +27,8 @@ export default function Settings() {
 
   const fetchProfile = async () => {
      try {
-       const user = await api.get("/auth/me");
+       const user: any = await api.get("/auth/me");
        if (user) {
-          // If backend mapping succeeds, populate defaults
           setTelegramChatId(user.id || "");
        }
      } catch (err) {
