@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode } from "lightweight-charts";
 import { 
-  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown, Activity
+  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown, Activity, Loader2
 } from "lucide-react";
 
 export default function Charts() {
@@ -17,6 +17,62 @@ export default function Charts() {
 
   const [timeframe, setTimeframe] = useState("1h");
   const intervals = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
+
+  const defaultAnalysisData = {
+    direction: "LONG",
+    confidence: 73,
+    targetTimeframe: "1h",
+    entry: "1.0847",
+    sl: "1.0801",
+    tp: "1.0935",
+    rr: "1:2.05",
+    pattern: "Double Bottom",
+    patternConf: 84,
+    indicators: {
+      rsi: "31 Oversold",
+      macd: "Bullish cross",
+      ema: "Uptrend",
+      adx: "28 Moderate",
+      bb: "Consolidating midpoint",
+      stoch: "22 Cross up",
+      atr: "Volatility flat"
+    }
+  };
+
+  const [analysisStatus, setAnalysisStatus] = useState<"idle" | "analyzing" | "done">("done");
+  const [analysisData, setAnalysisData] = useState<any>(defaultAnalysisData);
+
+  const handleAnalyze = () => {
+    setAnalysisStatus("analyzing");
+    
+    // Simulate analyzing the selected timeframe
+    setTimeout(() => {
+      const isBullish = Math.random() > 0.5;
+      const conf = Math.floor(65 + Math.random() * 25);
+      
+      setAnalysisData({
+        direction: isBullish ? "LONG" : "SHORT",
+        confidence: conf,
+        targetTimeframe: timeframe,
+        entry: (1 + Math.random() * 0.5).toFixed(4),
+        sl: (1 + Math.random() * 0.5).toFixed(4),
+        tp: (1 + Math.random() * 0.5).toFixed(4),
+        rr: `1:${(1.5 + Math.random()).toFixed(1)}`,
+        pattern: isBullish ? "Bullish Engulfing" : "Bearish Harami",
+        patternConf: Math.floor(60 + Math.random() * 30),
+        indicators: {
+          rsi: isBullish ? "Oversold bounce" : "Overbought reject",
+          macd: isBullish ? "Bullish divergence" : "Bearish crossover",
+          ema: isBullish ? "Above 200 EMA" : "Below 20 EMA",
+          adx: (20 + Math.random() * 20).toFixed(1) + " Trend strong",
+          bb: isBullish ? "Bouncing off lower band" : "Rejected at upper band",
+          stoch: isBullish ? "Crossing 20 line up" : "Crossing 80 line down",
+          atr: "Volatility increasing"
+        }
+      });
+      setAnalysisStatus("done");
+    }, 2000);
+  };
 
   useEffect(() => {
     if (!chartContainerRef.current || !rsiContainerRef.current || !macdContainerRef.current) return;
@@ -156,7 +212,14 @@ export default function Charts() {
          
          <div className="flex gap-2">
             <button className="flex items-center gap-2 bg-text-muted/10 border border-border-default px-4 py-1.5 rounded-lg text-xs font-medium text-text-primary hover:bg-bg-card transition"><Camera size={14} /><span>Screen Capture</span></button>
-            <button className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-bold px-5 py-1.5 text-xs rounded-lg shadow-glow-blue uppercase tracking-wider glow-blue"><BrainCircuit size={14} /><span>Analyze Chart</span></button>
+            <button 
+              onClick={handleAnalyze} 
+              disabled={analysisStatus === "analyzing"}
+              className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-bold px-5 py-1.5 text-xs rounded-lg shadow-glow-blue uppercase tracking-wider glow-blue disabled:opacity-50 transition"
+            >
+              {analysisStatus === "analyzing" ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+              <span>{analysisStatus === "analyzing" ? "Processing..." : "Analyze Chart"}</span>
+            </button>
          </div>
       </div>
 
@@ -192,49 +255,64 @@ export default function Charts() {
                  <button className="text-text-muted hover:text-white"><X size={16} /></button>
               </div>
 
-              {/* Central Signal Circle */}
-              <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-bullish/5 to-transparent rounded-xl border border-bullish/10">
-                 <h3 className="text-sm font-black uppercase tracking-wider text-bullish mb-4">BULLISH SIGNAL</h3>
-                 <div className="relative w-32 h-32 flex items-center justify-center rounded-full border-8 border-border-default">
-                    <svg className="absolute inset-0 w-full h-full -rotate-90">
-                      <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="10" fill="transparent" strokeDasharray="351" strokeDashoffset="94" className="text-bullish drop-shadow-md" />
-                    </svg>
-                    <span className="text-3xl font-black text-white relative z-10">73%</span>
+               {analysisStatus === "analyzing" ? (
+                 <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                   <Loader2 size={32} className="text-primary-500 animate-spin" />
+                   <p className="text-xs uppercase font-bold tracking-widest text-text-muted text-center leading-relaxed">
+                     Extracting technical indicators<br/>for {timeframe} timeframe...
+                   </p>
                  </div>
-                 <div className="mt-5 bg-bullish/10 border border-bullish/30 text-bullish font-bold uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full">
-                    Direction: <span className="text-white ml-2">LONG</span>
-                 </div>
-              </div>
+               ) : (
+                 <>
+                   {/* Central Signal Circle */}
+                   <div className={`flex flex-col items-center justify-center p-4 bg-gradient-to-b rounded-xl border ${analysisData.direction === "LONG" ? "from-bullish/5 border-bullish/10" : "from-bearish/5 border-bearish/10"}`}>
+                      <h3 className={`text-sm font-black uppercase tracking-wider mb-2 text-center ${analysisData.direction === "LONG" ? "text-bullish" : "text-bearish"}`}>
+                        Next {analysisData.targetTimeframe} Candle<br/>{analysisData.direction === "LONG" ? "BULLISH SIGNAL" : "BEARISH SIGNAL"}
+                      </h3>
+                      <div className="relative w-32 h-32 flex items-center justify-center rounded-full border-8 border-border-default mt-2">
+                         <svg className="absolute inset-0 w-full h-full -rotate-90">
+                           <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="10" fill="transparent" strokeDasharray="351" strokeDashoffset={351 - (351 * (analysisData.confidence / 100))} className={`${analysisData.direction === "LONG" ? "text-bullish" : "text-bearish"} drop-shadow-md transition-all duration-1000 ease-out`} />
+                         </svg>
+                         <span className="text-3xl font-black text-white relative z-10">{analysisData.confidence}%</span>
+                      </div>
+                      <div className={`mt-5 border font-bold uppercase tracking-widest text-[10px] px-4 py-1.5 rounded-full ${analysisData.direction === "LONG" ? "bg-bullish/10 border-bullish/30 text-bullish" : "bg-bearish/10 border-bearish/30 text-bearish"}`}>
+                         Direction: <span className="text-white ml-2">{analysisData.direction}</span>
+                      </div>
+                   </div>
 
-              {/* Trade Values Grid */}
-              <div className="mt-6 space-y-2">
-                 <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Entry:</span><span className="text-xs font-mono font-bold text-white">1.0847</span></div>
-                 <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Stop Loss:</span><span className="text-xs font-mono font-bold text-bearish">1.0801</span></div>
-                 <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Take Profit:</span><span className="text-xs font-mono font-bold text-bullish">1.0935</span></div>
-                 <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">RR:</span><span className="text-xs font-mono font-bold text-white">1:2.05</span></div>
-                 <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Position Size:</span><span className="text-xs font-mono font-bold text-white">0.3 lots</span></div>
-              </div>
+                   {/* Trade Values Grid */}
+                   <div className="mt-6 space-y-2">
+                      <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Target Entry:</span><span className="text-xs font-mono font-bold text-text-primary">{analysisData.entry}</span></div>
+                      <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Stop Loss:</span><span className="text-xs font-mono font-bold text-bearish">{analysisData.sl}</span></div>
+                      <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Take Profit:</span><span className="text-xs font-mono font-bold text-bullish">{analysisData.tp}</span></div>
+                      <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">RR:</span><span className="text-xs font-mono font-bold text-white">{analysisData.rr}</span></div>
+                      <div className="flex justify-between items-center p-2 rounded hover:bg-bg-card transition"><span className="text-xs text-text-muted">Position Size:</span><span className="text-xs font-mono font-bold text-white">0.3 lots</span></div>
+                   </div>
 
-              {/* Pattern Detected */}
-              <div className="mt-6 border border-border-default rounded-xl p-4 bg-bg-card">
-                 <div className="flex items-center gap-2 mb-2 text-text-secondary"><Activity size={14}/><h4 className="text-xs font-medium">Pattern Detected</h4></div>
-                 <p className="text-sm font-semibold text-white leading-snug">Double Bottom,<br/><span className="text-text-muted font-normal text-xs">84% confidence</span></p>
-              </div>
+                   {/* Pattern Detected */}
+                   <div className="mt-6 border border-border-default rounded-xl p-4 bg-bg-card">
+                      <div className="flex items-center gap-2 mb-2 text-text-secondary"><Activity size={14}/><h4 className="text-xs font-medium">Pattern Detected</h4></div>
+                      <p className="text-sm font-semibold text-white leading-snug">{analysisData.pattern},<br/><span className="text-text-muted font-normal text-xs">{analysisData.patternConf}% confidence</span></p>
+                   </div>
 
-              {/* Indicator Summary Block */}
-              <div className="mt-4 border border-border-default rounded-xl p-4 bg-bg-card">
-                 <h4 className="text-xs font-medium mb-3 text-text-secondary">Indicator Summary</h4>
-                 <div className="space-y-2 text-xs font-mono">
-                    <div className="flex justify-between"><span className="text-text-muted">RSI:</span><span className="text-bullish flex items-center gap-1">31 Oversold <CheckCircle2 size={10}/></span></div>
-                    <div className="flex justify-between"><span className="text-text-muted">MACD:</span><span className="text-bullish flex items-center gap-1">Bullish cross <CheckCircle2 size={10}/></span></div>
-                    <div className="flex justify-between"><span className="text-text-muted">EMA:</span><span className="text-bullish flex items-center gap-1">Uptrend <CheckCircle2 size={10}/></span></div>
-                    <div className="flex justify-between"><span className="text-text-muted">ADX:</span><span className="text-neutral-warning flex items-center gap-1">28 Moderate</span></div>
-                 </div>
-              </div>
+                   {/* Indicator Summary Block */}
+                   <div className="mt-4 border border-border-default rounded-xl p-4 bg-bg-card">
+                      <h4 className="text-xs font-medium mb-3 text-text-secondary">{analysisData.targetTimeframe} Indicator Summary</h4>
+                      <div className="space-y-2 text-xs font-mono">
+                         <div className="flex justify-between"><span className="text-text-muted">RSI:</span><span className={`flex items-center gap-1 ${analysisData.direction === "LONG" ? "text-bullish" : "text-bearish"}`}>{analysisData.indicators.rsi}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">MACD:</span><span className={`flex items-center gap-1 ${analysisData.direction === "LONG" ? "text-bullish" : "text-bearish"}`}>{analysisData.indicators.macd}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">EMA:</span><span className={`flex items-center gap-1 ${analysisData.direction === "LONG" ? "text-bullish" : "text-bearish"}`}>{analysisData.indicators.ema}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">ADX:</span><span className="text-neutral-warning flex items-center gap-1">{analysisData.indicators.adx}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">BB:</span><span className="text-text-primary flex items-center gap-1">{analysisData.indicators.bb}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">Stoch:</span><span className="text-text-primary flex items-center gap-1">{analysisData.indicators.stoch}</span></div>
+                         <div className="flex justify-between"><span className="text-text-muted">ATR:</span><span className="text-text-primary flex items-center gap-1">{analysisData.indicators.atr}</span></div>
+                      </div>
+                   </div>
+                 </>
+               )}
+            </div>
 
-           </div>
-
-        </div>
+         </div>
 
       </div>
 
