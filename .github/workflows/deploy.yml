@@ -1,0 +1,70 @@
+name: Deploy ForexAI Pro to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run Pytest Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          cd backend
+          pytest tests/ -v
+
+  deploy:
+    name: Deploy to Cloud VM
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Copy Compose and Configs via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: "deploy/docker-compose.prod.yml,deploy/nginx.conf,deploy/Dockerfile.backend,backend/"
+          target: "~/forexai-pro"
+
+      - name: Execute Docker Compose on Server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd ~/forexai-pro/deploy
+            
+            # Export secrets into runtime environment
+            export POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            export POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            export REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            export SECRET_KEY=${{ secrets.SECRET_KEY }}
+            
+            # Rebuild images without cache and deploy seamlessly
+            docker-compose -f docker-compose.prod.yml up -d --build
+            
+            # Prune old images to save disk space
+            docker image prune -f
