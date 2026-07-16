@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode } from "lightweight-charts";
 import { 
-  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown
+  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown, Activity
 } from "lucide-react";
 
 export default function Charts() {
@@ -43,7 +43,7 @@ export default function Charts() {
     const rsiChart = createChart(rsiContainerRef.current, {
       ...commonOptions, width: rsiContainerRef.current.clientWidth, height: 120,
     });
-    const rsiSeries = rsiChart.addSeries(LineSeries, { color: "#8B5CF6", lineWidth: 1.5 });
+    const rsiSeries = rsiChart.addSeries(LineSeries, { color: "#8B5CF6", lineWidth: 2 });
     // Add Overbought/Oversold lines to RSI
     rsiSeries.createPriceLine({ price: 70, color: '#EF4444', lineWidth: 1, lineStyle: 2, title: 'Overbought' });
     rsiSeries.createPriceLine({ price: 30, color: '#22C55E', lineWidth: 1, lineStyle: 2, title: 'Oversold' });
