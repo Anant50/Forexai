@@ -79,6 +79,11 @@ export default function Charts() {
     const fetchCandles = async () => {
       try {
         const response: any = await api.get("/market-data/candles?limit=100").catch(() => null);
+        const handleData = (data: any[]) => {
+          series.setData(data);
+          chart.timeScale().fitContent();
+        };
+
         if (response && response.length > 0) {
           const chartData = response.map((item: any) => ({
             time: typeof item.timestamp === 'string' ? item.timestamp.split('T')[0] : new Date(item.timestamp).toISOString().split('T')[0],
@@ -87,11 +92,14 @@ export default function Charts() {
             low: item.low,
             close: item.close
           }));
-          series.setData(chartData.reverse());
+          handleData(chartData.reverse());
         } else {
-           // Provide standard offline array dynamically if DB lacks target specific metric
-           series.setData([
-            { time: "2026-07-10", open: 1.0820, high: 1.0850, low: 1.0810, close: 1.0840 },
+           handleData([
+            { time: "2026-07-06", open: 1.0800, high: 1.0825, low: 1.0790, close: 1.0815 },
+            { time: "2026-07-07", open: 1.0815, high: 1.0840, low: 1.0810, close: 1.0830 },
+            { time: "2026-07-08", open: 1.0830, high: 1.0850, low: 1.0810, close: 1.0820 },
+            { time: "2026-07-09", open: 1.0820, high: 1.0860, low: 1.0815, close: 1.0845 },
+            { time: "2026-07-10", open: 1.0845, high: 1.0850, low: 1.0810, close: 1.0840 },
             { time: "2026-07-11", open: 1.0840, high: 1.0860, low: 1.0830, close: 1.0855 },
             { time: "2026-07-12", open: 1.0855, high: 1.0870, low: 1.0845, close: 1.0862 },
             { time: "2026-07-13", open: 1.0862, high: 1.0890, low: 1.0850, close: 1.0878 },
