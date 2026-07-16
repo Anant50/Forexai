@@ -76,43 +76,50 @@ export default function Charts() {
       wickDownColor: "#EF4444",
     });
 
-    const fetchCandles = async () => {
-      try {
-        const response: any = await api.get("/market-data/candles?limit=100").catch(() => null);
-        const handleData = (data: any[]) => {
-          series.setData(data);
-          chart.timeScale().fitContent();
-        };
+    let ws: WebSocket | null = null;
 
-        if (response && response.length > 0) {
-          const chartData = response.map((item: any) => ({
-            time: typeof item.timestamp === 'string' ? item.timestamp.split('T')[0] : new Date(item.timestamp).toISOString().split('T')[0],
-            open: item.open,
-            high: item.high,
-            low: item.low,
-            close: item.close
+    const setupLiveData = async () => {
+      try {
+        // Map Forex pair to Crypto Proxy (e.g. EUR/USD -> EURUSDT) 
+        // This allows free, public, high-speed streaming without API limits.
+        const symbol = (pair.replace(/[\/_]/g, "") + "T").toUpperCase();
+        const lowerSymbol = symbol.toLowerCase();
+        
+        // 1. Fetch initial history limit to populate the chart viewport
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${timeframe}&limit=150`);
+        const data = await res.json();
+        
+        if (data && data.length > 0) {
+          const chartData = data.map((d: any) => ({
+            time: (d[0] / 1000) as any, // lightweight-charts expects unix timestamp in seconds
+            open: parseFloat(d[1]),
+            high: parseFloat(d[2]),
+            low: parseFloat(d[3]),
+            close: parseFloat(d[4]),
           }));
-          handleData(chartData.reverse());
-        } else {
-           handleData([
-            { time: "2026-07-06", open: 1.0800, high: 1.0825, low: 1.0790, close: 1.0815 },
-            { time: "2026-07-07", open: 1.0815, high: 1.0840, low: 1.0810, close: 1.0830 },
-            { time: "2026-07-08", open: 1.0830, high: 1.0850, low: 1.0810, close: 1.0820 },
-            { time: "2026-07-09", open: 1.0820, high: 1.0860, low: 1.0815, close: 1.0845 },
-            { time: "2026-07-10", open: 1.0845, high: 1.0850, low: 1.0810, close: 1.0840 },
-            { time: "2026-07-11", open: 1.0840, high: 1.0860, low: 1.0830, close: 1.0855 },
-            { time: "2026-07-12", open: 1.0855, high: 1.0870, low: 1.0845, close: 1.0862 },
-            { time: "2026-07-13", open: 1.0862, high: 1.0890, low: 1.0850, close: 1.0878 },
-            { time: "2026-07-14", open: 1.0878, high: 1.0895, low: 1.0860, close: 1.0870 },
-            { time: "2026-07-15", open: 1.0870, high: 1.0910, low: 1.0865, close: 1.0905 },
-            { time: "2026-07-16", open: 1.0905, high: 1.0935, low: 1.0895, close: 1.0924 }
-          ]);
+          series.setData(chartData);
+          chart.timeScale().fitContent();
+
+          // 2. Connect to Native WebSocket Engine for real-time tick streaming
+          ws = new WebSocket(`wss://stream.binance.com:9443/ws/${lowerSymbol}@kline_${timeframe}`);
+          ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            const kline = message.k;
+            // Native Lightweight-chart streaming update!
+            series.update({
+               time: (kline.t / 1000) as any,
+               open: parseFloat(kline.o),
+               high: parseFloat(kline.h),
+               low: parseFloat(kline.l),
+               close: parseFloat(kline.c),
+            });
+          };
         }
       } catch (err) {
-        console.error("Failed to fetch historical candles", err);
+        console.error("Failed to connect to live market proxy.", err);
       }
     };
-    fetchCandles();
+    setupLiveData();
 
     chartRef.current = chart;
     seriesRef.current = series;
@@ -129,6 +136,7 @@ export default function Charts() {
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (ws) ws.close();
       chart.remove();
     };
   }, [timeframe]);
