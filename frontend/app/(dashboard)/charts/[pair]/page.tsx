@@ -159,7 +159,12 @@ export default function Charts() {
   };
 
   const handleScreenCapture = () => {
-    alert("Screen Capture Request initiated: Browser getDisplayMedia active target selector details placeholder.");
+    if (!chartRef.current) return;
+    const canvas = chartRef.current.takeScreenshot();
+    const link = document.createElement("a");
+    link.download = `ForexAI_${pair.replace("/", "_")}_${timeframe}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   };
 
   return (
