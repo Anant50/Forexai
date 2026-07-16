@@ -64,6 +64,8 @@ export default function Charts() {
       },
       timeScale: {
         borderColor: "#1E2D4A",
+        timeVisible: true,
+        secondsVisible: false,
       },
     });
 
@@ -123,6 +125,31 @@ export default function Charts() {
 
     chartRef.current = chart;
     seriesRef.current = series;
+
+    // Crosshair legend handler
+    chart.subscribeCrosshairMove((param) => {
+      const tooltip = document.getElementById("chart-tooltip");
+      if (!tooltip) return;
+      if (
+        param.point === undefined ||
+        !param.time ||
+        param.point.x < 0 ||
+        param.point.x > chartContainerRef.current!.clientWidth ||
+        param.point.y < 0 ||
+        param.point.y > chartContainerRef.current!.clientHeight
+      ) {
+        tooltip.style.display = 'none';
+      } else {
+        const data = param.seriesData.get(series) as any;
+        if (data && data.open !== undefined) {
+          tooltip.style.display = 'flex';
+          document.getElementById('tt-o')!.innerText = data.open.toFixed(5);
+          document.getElementById('tt-c')!.innerText = data.close.toFixed(5);
+          document.getElementById('tt-h')!.innerText = data.high.toFixed(5);
+          document.getElementById('tt-l')!.innerText = data.low.toFixed(5);
+        }
+      }
+    });
 
     // Resize Handler
     const handleResize = () => {
@@ -250,6 +277,16 @@ export default function Charts() {
             </div>
           )}
           <div ref={chartContainerRef} className="w-full h-[480px] bg-bg-base" />
+          {/* Native Chart Hover OHLC Tooltip */}
+          <div 
+            id="chart-tooltip" 
+            className="absolute bottom-6 left-6 z-40 bg-bg-surface/85 backdrop-blur-md border border-border-default rounded-lg p-3 text-xs font-mono shadow-xl hidden flex-col gap-1.5 pointer-events-none select-none"
+          >
+            <div className="flex justify-between gap-4"><span className="text-text-muted">Open:</span> <span id="tt-o" className="text-text-primary font-bold">0.00000</span></div>
+            <div className="flex justify-between gap-4"><span className="text-text-muted">Close:</span> <span id="tt-c" className="text-text-primary font-bold">0.00000</span></div>
+            <div className="flex justify-between gap-4"><span className="text-text-muted">High:</span> <span id="tt-h" className="text-bullish font-bold">0.00000</span></div>
+            <div className="flex justify-between gap-4"><span className="text-text-muted">Low:</span> <span id="tt-l" className="text-bearish font-bold">0.00000</span></div>
+          </div>
         </div>
 
         {/* Dynamic sliding Framer-Motion PredictionPanel side overlays */}
