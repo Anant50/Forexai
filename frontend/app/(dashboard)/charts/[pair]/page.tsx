@@ -14,6 +14,8 @@ export default function Charts() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiContainerRef = useRef<HTMLDivElement>(null);
   const macdContainerRef = useRef<HTMLDivElement>(null);
+  const stochContainerRef = useRef<HTMLDivElement>(null);
+  const atrContainerRef = useRef<HTMLDivElement>(null);
 
   const [timeframe, setTimeframe] = useState("1h");
   const intervals = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
@@ -75,7 +77,7 @@ export default function Charts() {
   };
 
   useEffect(() => {
-    if (!chartContainerRef.current || !rsiContainerRef.current || !macdContainerRef.current) return;
+    if (!chartContainerRef.current || !rsiContainerRef.current || !macdContainerRef.current || !stochContainerRef.current || !atrContainerRef.current) return;
 
     const commonOptions = {
       layout: { background: { color: "transparent" }, textColor: "#94A3B8", fontSize: 10 },
@@ -94,13 +96,15 @@ export default function Charts() {
       upColor: "#22C55E", downColor: "#EF4444", borderVisible: false, wickUpColor: "#22C55E", wickDownColor: "#EF4444",
       priceFormat: { type: 'price', precision: 5, minMove: 0.00001 },
     });
+    const bbUpperSeries = mainChart.addSeries(LineSeries, { color: "rgba(59, 130, 246, 0.4)", lineWidth: 1 });
+    const bbLowerSeries = mainChart.addSeries(LineSeries, { color: "rgba(59, 130, 246, 0.4)", lineWidth: 1 });
+    const bbSmaSeries = mainChart.addSeries(LineSeries, { color: "rgba(255, 255, 255, 0.2)", lineWidth: 1, lineStyle: 2 });
 
     // 2. RSI CHART
     const rsiChart = createChart(rsiContainerRef.current, {
       ...commonOptions, width: rsiContainerRef.current.clientWidth, height: 120,
     });
     const rsiSeries = rsiChart.addSeries(LineSeries, { color: "#8B5CF6", lineWidth: 2 });
-    // Add Overbought/Oversold lines to RSI
     rsiSeries.createPriceLine({ price: 70, color: '#EF4444', lineWidth: 1, lineStyle: 2, title: 'Overbought' });
     rsiSeries.createPriceLine({ price: 30, color: '#22C55E', lineWidth: 1, lineStyle: 2, title: 'Oversold' });
 
@@ -109,17 +113,40 @@ export default function Charts() {
       ...commonOptions, width: macdContainerRef.current.clientWidth, height: 140,
     });
     const macdHist = macdChart.addSeries(HistogramSeries, { color: "#22C55E" });
-    const macdLine = macdChart.addSeries(LineSeries, { color: "#3B82F6", lineWidth: 1 });
-    const macdSignal = macdChart.addSeries(LineSeries, { color: "#EF4444", lineWidth: 1 });
+    const macdLine = macdChart.addSeries(LineSeries, { color: "#3B82F6", lineWidth: 2 });
+    const macdSignal = macdChart.addSeries(LineSeries, { color: "#EF4444", lineWidth: 2 });
+
+    // 4. STOCH CHART
+    const stochChart = createChart(stochContainerRef.current, {
+      ...commonOptions, width: stochContainerRef.current.clientWidth, height: 120,
+    });
+    const stochK = stochChart.addSeries(LineSeries, { color: "#3B82F6", lineWidth: 2 });
+    const stochD = stochChart.addSeries(LineSeries, { color: "#F59E0B", lineWidth: 2 });
+    stochK.createPriceLine({ price: 80, color: '#EF4444', lineWidth: 1, lineStyle: 2, title: 'Overbought' });
+    stochK.createPriceLine({ price: 20, color: '#22C55E', lineWidth: 1, lineStyle: 2, title: 'Oversold' });
+
+    // 5. ATR CHART
+    const atrChart = createChart(atrContainerRef.current, {
+      ...commonOptions, width: atrContainerRef.current.clientWidth, height: 120,
+    });
+    const atrSeries = atrChart.addSeries(LineSeries, { color: "#06B6D4", lineWidth: 2 });
 
     // Synchronization of time scales
     const mainTs = mainChart.timeScale();
     const rsiTs = rsiChart.timeScale();
     const macdTs = macdChart.timeScale();
-
-    mainTs.subscribeVisibleLogicalRangeChange(timeRange => { if (timeRange) { rsiTs.setVisibleLogicalRange(timeRange); macdTs.setVisibleLogicalRange(timeRange); }});
-    rsiTs.subscribeVisibleLogicalRangeChange(timeRange => { if (timeRange) { mainTs.setVisibleLogicalRange(timeRange); macdTs.setVisibleLogicalRange(timeRange); }});
-    macdTs.subscribeVisibleLogicalRangeChange(timeRange => { if (timeRange) { mainTs.setVisibleLogicalRange(timeRange); rsiTs.setVisibleLogicalRange(timeRange); }});
+    const stochTs = stochChart.timeScale();
+    const atrTs = atrChart.timeScale();
+    
+    const allTs = [mainTs, rsiTs, macdTs, stochTs, atrTs];
+    allTs.forEach((ts, idx) => {
+      ts.subscribeVisibleLogicalRangeChange(timeRange => {
+        if (!timeRange) return;
+        allTs.forEach((otherTs, otherIdx) => {
+          if (idx !== otherIdx) otherTs.setVisibleLogicalRange(timeRange);
+        });
+      });
+    });
 
     let ws: WebSocket | null = null;
     const setupLiveData = async () => {
@@ -132,9 +159,15 @@ export default function Charts() {
         
         if (data && data.length > 0) {
           const chartData = []; const rsiData = []; const macdHD = []; const macdL = []; const macdS = [];
+          const bbUpData: any[] = []; const bbLowData: any[] = []; const bbSmaData: any[] = [];
+          const stochKData: any[] = []; const stochDData: any[] = []; const atrData: any[] = [];
+          
           for(let i=0; i<data.length; i++) {
              const t = (data[i][0] / 1000) as any;
-             chartData.push({ time: t, open: parseFloat(data[i][1]), high: parseFloat(data[i][2]), low: parseFloat(data[i][3]), close: parseFloat(data[i][4]) });
+             const h = parseFloat(data[i][2]);
+             const l = parseFloat(data[i][3]);
+             const c = parseFloat(data[i][4]);
+             chartData.push({ time: t, open: parseFloat(data[i][1]), high: h, low: l, close: c });
              
              // Mock standard RSI oscillating between 20 and 80 based on some math
              const randRsi = 40 + Math.sin(i / 10) * 30 + Math.random() * 5;
@@ -146,11 +179,27 @@ export default function Charts() {
              macdL.push({ time: t, value: mLine });
              macdS.push({ time: t, value: sLine });
              macdHD.push({ time: t, value: mLine - sLine, color: (mLine - sLine) >= 0 ? '#22C55E' : '#EF4444' });
+
+             // Mock BB
+             const sma = (h + l) / 2;
+             const dev = 0.0025;
+             bbSmaData.push({ time: t, value: sma });
+             bbUpData.push({ time: t, value: sma + dev });
+             bbLowData.push({ time: t, value: sma - dev });
+
+             // Mock Stoch
+             stochKData.push({ time: t, value: 50 + Math.sin(i / 8) * 35 });
+             stochDData.push({ time: t, value: 50 + Math.sin((i - 3) / 8) * 35 });
+
+             // Mock ATR
+             atrData.push({ time: t, value: 0.0015 + Math.sin(i / 15) * 0.0005 });
           }
           mainSeries.setData(chartData); rsiSeries.setData(rsiData); 
           macdLine.setData(macdL); macdSignal.setData(macdS); macdHist.setData(macdHD);
+          bbUpperSeries.setData(bbUpData); bbLowerSeries.setData(bbLowData); bbSmaSeries.setData(bbSmaData);
+          stochK.setData(stochKData); stochD.setData(stochDData); atrSeries.setData(atrData);
 
-          mainTs.fitContent(); rsiTs.fitContent(); macdTs.fitContent();
+          mainTs.fitContent(); rsiTs.fitContent(); macdTs.fitContent(); stochTs.fitContent(); atrTs.fitContent();
 
           // Connecting Live Tick streaming
           ws = new WebSocket(`wss://stream.binance.com:9443/ws/${lowerSymbol}@kline_${timeframe}`);
@@ -173,13 +222,15 @@ export default function Charts() {
       mainChart.applyOptions({ width: chartContainerRef.current?.clientWidth });
       rsiChart.applyOptions({ width: rsiContainerRef.current?.clientWidth });
       macdChart.applyOptions({ width: macdContainerRef.current?.clientWidth });
+      stochChart.applyOptions({ width: stochContainerRef.current?.clientWidth });
+      atrChart.applyOptions({ width: atrContainerRef.current?.clientWidth });
     };
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
       if (ws) ws.close();
-      mainChart.remove(); rsiChart.remove(); macdChart.remove();
+      mainChart.remove(); rsiChart.remove(); macdChart.remove(); stochChart.remove(); atrChart.remove();
     };
   }, [timeframe, pair]);
 
@@ -242,6 +293,16 @@ export default function Charts() {
           <div className="bg-bg-surface border border-border-subtle rounded-xl p-4 relative">
              <div className="absolute top-6 left-6 z-10 flex flex-col"><span className="text-[10px] font-bold text-white">MACD<span className="text-bullish ml-2">MACD 1.084</span><span className="text-bearish ml-2">Signal 1.080</span></span></div>
              <div ref={macdContainerRef} className="w-full relative" />
+          </div>
+
+          <div className="bg-bg-surface border border-border-subtle rounded-xl p-4 relative">
+             <div className="absolute top-6 left-6 z-10 flex flex-col"><span className="text-[10px] font-bold text-white">Stochastic <span className="text-primary-400">K</span> <span className="text-neutral-warning ml-1">D</span></span></div>
+             <div ref={stochContainerRef} className="w-full relative" />
+          </div>
+
+          <div className="bg-bg-surface border border-border-subtle rounded-xl p-4 relative">
+             <div className="absolute top-6 left-6 z-10 flex flex-col"><span className="text-[10px] font-bold text-white">ATR <span className="text-accent-cyan ml-1">Vol</span></span></div>
+             <div ref={atrContainerRef} className="w-full relative" />
           </div>
 
         </div>
