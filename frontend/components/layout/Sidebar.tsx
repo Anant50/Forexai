@@ -17,7 +17,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  TrendingDown
+  TrendingDown,
+  ScanSearch
 } from "lucide-react";
 
 interface SidebarItem {
@@ -37,6 +38,7 @@ export default function Sidebar() {
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Live Charts", href: "/charts/EUR_USD", icon: TrendingUp },
     { name: "AI Analysis", href: "/analysis", icon: BrainCircuit },
+    { name: "Chart Image Analysis", href: "/analysis/image", icon: ScanSearch },
     { name: "Trading Journal", href: "/journal", icon: BookOpen },
     { name: "Performance", href: "/performance", icon: Activity },
     { name: "Knowledge AI", href: "/knowledge", icon: MessageSquareCode },
