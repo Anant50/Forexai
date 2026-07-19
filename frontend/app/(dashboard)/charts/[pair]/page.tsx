@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode } from "lightweight-charts";
 import { 
-  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown, Activity, Loader2
+  Camera, BrainCircuit, Sliders, X, CheckCircle2, ChevronDown, Activity, Loader2, Plus, Minus
 } from "lucide-react";
 
 export default function Charts() {
@@ -16,6 +16,7 @@ export default function Charts() {
   const macdContainerRef = useRef<HTMLDivElement>(null);
   const stochContainerRef = useRef<HTMLDivElement>(null);
   const atrContainerRef = useRef<HTMLDivElement>(null);
+  const mainChartRef = useRef<any>(null);
 
   const [timeframe, setTimeframe] = useState("1h");
   const intervals = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
@@ -76,6 +77,26 @@ export default function Charts() {
     }, 2000);
   };
 
+  const handleZoomIn = () => {
+    if (!mainChartRef.current) return;
+    const ts = mainChartRef.current.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      const diff = range.to - range.from;
+      ts.setVisibleLogicalRange({ from: range.from + diff * 0.15, to: range.to - diff * 0.15 });
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (!mainChartRef.current) return;
+    const ts = mainChartRef.current.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      const diff = range.to - range.from;
+      ts.setVisibleLogicalRange({ from: range.from - diff * 0.15, to: range.to + diff * 0.15 });
+    }
+  };
+
   useEffect(() => {
     if (!chartContainerRef.current || !rsiContainerRef.current || !macdContainerRef.current || !stochContainerRef.current || !atrContainerRef.current) return;
 
@@ -92,6 +113,7 @@ export default function Charts() {
       width: chartContainerRef.current.clientWidth,
       height: 380,
     });
+    mainChartRef.current = mainChart;
     const mainSeries = mainChart.addSeries(CandlestickSeries, {
       upColor: "#22C55E", downColor: "#EF4444", borderVisible: false, wickUpColor: "#22C55E", wickDownColor: "#EF4444",
       priceFormat: { type: 'price', precision: 5, minMove: 0.00001 },
@@ -282,6 +304,10 @@ export default function Charts() {
           
           <div className="bg-bg-surface border border-border-subtle rounded-xl p-4 relative">
              <div className="absolute top-6 left-6 z-10 flex gap-2"><span className="bg-primary-500/20 text-primary-400 text-[10px] font-bold px-2 py-0.5 rounded border border-primary-500/30">EMA</span></div>
+             <div className="absolute bottom-6 right-16 z-10 flex gap-2">
+                 <button onClick={handleZoomOut} className="bg-bg-card border border-border-strong hover:bg-bg-elevated hover:border-text-muted p-2 rounded-lg text-text-muted hover:text-white transition shadow-sm pointer-events-auto" title="Zoom Out"><Minus size={16}/></button>
+                 <button onClick={handleZoomIn} className="bg-bg-card border border-border-strong hover:bg-bg-elevated hover:border-text-muted p-2 rounded-lg text-text-muted hover:text-white transition shadow-sm pointer-events-auto" title="Zoom In"><Plus size={16}/></button>
+             </div>
              <div ref={chartContainerRef} className="w-full relative" />
           </div>
 
