@@ -7,7 +7,10 @@ import {
   Camera, BrainCircuit, X, ChevronDown, Activity, Loader2, Plus, Minus, Zap, TrendingUp, TrendingDown
 } from "lucide-react";
 import { runAutoAnalysis, type OHLCV, type AutoAnalysisResult } from "@/lib/analysis/engine";
+import { runPatternAnalysis, type PatternAnalysis } from "@/lib/analysis/patterns";
 import AutoAnalysisPanel, { type OverlayConfig } from "./components/AutoAnalysisPanel";
+import PatternResultsPanel from "./components/PatternResultsPanel";
+import PatternOverlayLayer from "./components/PatternOverlayLayer";
 
 // ─── Chart Label pill shown inside a chart card ─────────────────────────────
 const ChartLabel = ({ children }: { children: React.ReactNode }) => (
@@ -56,7 +59,12 @@ export default function Charts() {
   // Auto Analysis (Phase 15)
   const [autoStatus, setAutoStatus]   = useState<"idle" | "running" | "done">("idle");
   const [autoResult, setAutoResult]   = useState<AutoAnalysisResult | null>(null);
-  const [activeRightPanel, setActiveRightPanel] = useState<"ai" | "auto">("ai");
+
+  // Pattern Engine (Phase 16)
+  const [patternStatus, setPatternStatus]   = useState<"idle" | "running" | "done">("idle");
+  const [patternResult, setPatternResult]   = useState<PatternAnalysis | null>(null);
+
+  const [activeRightPanel, setActiveRightPanel] = useState<"ai" | "auto" | "patterns">("ai");
   const [overlays, setOverlays]       = useState<OverlayConfig>({ trendlines: true, levels: true, structure: true, patterns: true });
 
   const handleToggleOverlay = (key: keyof OverlayConfig) =>
@@ -87,6 +95,17 @@ export default function Charts() {
       });
       setAiStatus("done");
     }, 2000);
+  };
+
+  const handlePatterns = async () => {
+    if (ohlcvCache.length < 30) return;
+    setPatternStatus("running");
+    setActiveRightPanel("patterns");
+
+    await new Promise(r => setTimeout(r, 120));
+    const result = runPatternAnalysis(ohlcvCache, pair.replace("/", ""), timeframe);
+    setPatternResult(result);
+    setPatternStatus("done");
   };
 
   const handleZoomIn = () => {
@@ -315,8 +334,21 @@ export default function Charts() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-text-muted hover:text-white border border-border-default hover:border-text-muted bg-bg-card px-3 py-1.5 rounded-lg text-[11px] font-medium transition">
+          <button className="flex items-center gap-1.5 text-text-muted hover:text-white border border-border-default hover:border-text-muted bg-bg-card px-3 py-1.5 rounded-lg text-[11px] font-medium transition hidden md:flex">
             <Camera size={13} /> Screenshot
+          </button>
+
+          <button
+            onClick={handlePatterns}
+            disabled={patternStatus === "running" || ohlcvCache.length < 30}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition shadow-md disabled:opacity-50 ${
+              activeRightPanel === "patterns" && patternResult
+                ? "bg-amber-500/20 border border-amber-500/50 text-amber-500"
+                : "bg-gradient-to-r from-amber-600 to-amber-500 text-white"
+            }`}
+          >
+            {patternStatus === "running" ? <Loader2 size={13} className="animate-spin" /> : <Activity size={13} />}
+            Detect Patterns
           </button>
 
           <button
@@ -382,6 +414,9 @@ export default function Charts() {
             </div>
 
             <div ref={chartContainerRef} className="w-full block" />
+            
+            {activeRightPanel === "patterns" && <PatternOverlayLayer chartRef={mainChartRef} analysis={patternResult} data={ohlcvCache} />}
+            
           </ChartCard>
 
           {/* RSI */}
@@ -445,6 +480,14 @@ export default function Charts() {
               }`}
             >
               <Zap size={13} /> Auto TA
+            </button>
+            <button
+              onClick={() => setActiveRightPanel("patterns")}
+              className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition ${
+                activeRightPanel === "patterns" ? "bg-amber-500/20 text-amber-500 border-b-2 border-amber-500" : "text-text-muted hover:text-white"
+              }`}
+            >
+              <Activity size={13} /> Patterns
             </button>
           </div>
 
@@ -575,6 +618,42 @@ export default function Charts() {
 
               {autoStatus === "done" && autoResult && (
                 <AutoAnalysisPanel result={autoResult} overlays={overlays} onToggleOverlay={handleToggleOverlay} />
+              )}
+            </>
+          )}
+
+          {/* Patterns panel */}
+          {activeRightPanel === "patterns" && (
+            <>
+              {patternStatus === "idle" && (
+                <div className="bg-bg-surface border border-border-subtle rounded-xl p-8 flex flex-col items-center gap-4 text-center shadow-sm">
+                  <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                    <Activity size={24} className="text-amber-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white mb-1">Pattern Recognition Ready</h3>
+                    <p className="text-xs text-text-muted leading-relaxed">Click the <span className="text-amber-500 font-bold">Detect Patterns</span> button to scan for 30+ chart patterns using geometric template matching and historical similarity.</p>
+                  </div>
+                </div>
+              )}
+
+              {patternStatus === "running" && (
+                <div className="bg-bg-surface border border-border-subtle rounded-xl p-8 flex flex-col items-center gap-5 shadow-sm">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-border-strong border-t-amber-500 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center"><Activity size={20} className="text-amber-500" /></div>
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-sm font-bold text-white mb-1">Detecting Patterns</h3>
+                    <p className="text-[10px] text-text-muted font-mono space-y-1 text-center">
+                      Geometry → Symmetry → Scorer → Similarity
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {patternStatus === "done" && patternResult && (
+                <PatternResultsPanel result={patternResult} />
               )}
             </>
           )}
