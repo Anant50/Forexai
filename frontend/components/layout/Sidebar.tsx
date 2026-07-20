@@ -37,8 +37,8 @@ export default function Sidebar() {
 
   const items: SidebarItem[] = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Master AI Engine", href: "/ai-dashboard", icon: BrainCircuit },
     { name: "Live Charts", href: "/charts/EUR_USD", icon: TrendingUp },
-    { name: "AI Analysis", href: "/analysis", icon: BrainCircuit },
     { name: "Chart Image Analysis", href: "/analysis/image", icon: ScanSearch },
     { name: "MTF Analysis", href: "/mtf", icon: Network },
     { name: "Trading Journal", href: "/journal", icon: BookOpen },
