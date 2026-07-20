@@ -44,10 +44,10 @@ export default function AiDashboard() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full h-full pb-10">
+    <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full min-h-full pb-10">
       
       {/* Header Panel */}
-      <div className="bg-bg-surface border border-border-subtle rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="shrink-0 bg-bg-surface border border-border-subtle rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-[100px] pointer-events-none" />
         
         <div className="z-10">
