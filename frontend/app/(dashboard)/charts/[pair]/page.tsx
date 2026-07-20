@@ -4,13 +4,16 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode } from "lightweight-charts";
 import { 
-  Camera, BrainCircuit, X, ChevronDown, Activity, Loader2, Plus, Minus, Zap, TrendingUp, TrendingDown
+  Camera, BrainCircuit, X, ChevronDown, Activity, Loader2, Plus, Minus, Zap, TrendingUp, TrendingDown, ShieldCheck
 } from "lucide-react";
 import { runAutoAnalysis, type OHLCV, type AutoAnalysisResult } from "@/lib/analysis/engine";
 import { runPatternAnalysis, type PatternAnalysis } from "@/lib/analysis/patterns";
+import { runSMCAnalysis, type SMCAnalysis } from "@/lib/analysis/smc";
 import AutoAnalysisPanel, { type OverlayConfig } from "./components/AutoAnalysisPanel";
 import PatternResultsPanel from "./components/PatternResultsPanel";
 import PatternOverlayLayer from "./components/PatternOverlayLayer";
+import SMCInsightsPanel from "./components/smc/SMCInsightsPanel";
+import SMCOverlayLayer from "./components/smc/SMCOverlayLayer";
 
 // ─── Chart Label pill shown inside a chart card ─────────────────────────────
 const ChartLabel = ({ children }: { children: React.ReactNode }) => (
@@ -64,7 +67,11 @@ export default function Charts() {
   const [patternStatus, setPatternStatus]   = useState<"idle" | "running" | "done">("idle");
   const [patternResult, setPatternResult]   = useState<PatternAnalysis | null>(null);
 
-  const [activeRightPanel, setActiveRightPanel] = useState<"ai" | "auto" | "patterns">("ai");
+  // SMC Engine (Phase 18)
+  const [smcStatus, setSmcStatus]   = useState<"idle" | "running" | "done">("idle");
+  const [smcResult, setSmcResult]   = useState<SMCAnalysis | null>(null);
+
+  const [activeRightPanel, setActiveRightPanel] = useState<"ai" | "auto" | "patterns" | "smc">("ai");
   const [overlays, setOverlays]       = useState<OverlayConfig>({ trendlines: true, levels: true, structure: true, patterns: true });
 
   const handleToggleOverlay = (key: keyof OverlayConfig) =>
@@ -106,6 +113,17 @@ export default function Charts() {
     const result = runPatternAnalysis(ohlcvCache, pair.replace("/", ""), timeframe);
     setPatternResult(result);
     setPatternStatus("done");
+  };
+
+  const handleSMC = async () => {
+    if (ohlcvCache.length < 30) return;
+    setSmcStatus("running");
+    setActiveRightPanel("smc");
+
+    await new Promise(r => setTimeout(r, 120));
+    const result = runSMCAnalysis(ohlcvCache, pair.replace("/", ""), timeframe);
+    setSmcResult(result);
+    setSmcStatus("done");
   };
 
   const handleZoomIn = () => {
@@ -339,6 +357,19 @@ export default function Charts() {
           </button>
 
           <button
+            onClick={handleSMC}
+            disabled={smcStatus === "running" || ohlcvCache.length < 30}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition shadow-md disabled:opacity-50 ${
+              activeRightPanel === "smc" && smcResult
+                ? "bg-rose-500/20 border border-rose-500/50 text-rose-500"
+                : "bg-gradient-to-r from-rose-600 to-rose-500 text-white"
+            }`}
+          >
+            {smcStatus === "running" ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+            Smart Money
+          </button>
+
+          <button
             onClick={handlePatterns}
             disabled={patternStatus === "running" || ohlcvCache.length < 30}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition shadow-md disabled:opacity-50 ${
@@ -416,6 +447,7 @@ export default function Charts() {
             <div ref={chartContainerRef} className="w-full block" />
             
             {activeRightPanel === "patterns" && <PatternOverlayLayer chartRef={mainChartRef} analysis={patternResult} data={ohlcvCache} />}
+            {activeRightPanel === "smc" && <SMCOverlayLayer chartRef={mainChartRef} analysis={smcResult} data={ohlcvCache} enabled={true} />}
             
           </ChartCard>
 
@@ -488,6 +520,14 @@ export default function Charts() {
               }`}
             >
               <Activity size={13} /> Patterns
+            </button>
+            <button
+              onClick={() => setActiveRightPanel("smc")}
+              className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition ${
+                activeRightPanel === "smc" ? "bg-rose-500/20 text-rose-500 border-b-2 border-rose-500" : "text-text-muted hover:text-white"
+              }`}
+            >
+              <ShieldCheck size={13} /> SMC
             </button>
           </div>
 
@@ -654,6 +694,42 @@ export default function Charts() {
 
               {patternStatus === "done" && patternResult && (
                 <PatternResultsPanel result={patternResult} />
+              )}
+            </>
+          )}
+
+          {/* SMC panel */}
+          {activeRightPanel === "smc" && (
+            <>
+              {smcStatus === "idle" && (
+                <div className="bg-bg-surface border border-border-subtle rounded-xl p-8 flex flex-col items-center gap-4 text-center shadow-sm">
+                  <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center">
+                    <ShieldCheck size={24} className="text-rose-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white mb-1">Smart Money Ready</h3>
+                    <p className="text-xs text-text-muted leading-relaxed">Click the <span className="text-rose-500 font-bold">Smart Money</span> button to detect Institutional Order Blocks, Fair Value Gaps, and Liquidity Sweeps.</p>
+                  </div>
+                </div>
+              )}
+
+              {smcStatus === "running" && (
+                <div className="bg-bg-surface border border-border-subtle rounded-xl p-8 flex flex-col items-center gap-5 shadow-sm">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full border-4 border-border-strong border-t-rose-500 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center"><ShieldCheck size={20} className="text-rose-500" /></div>
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-sm font-bold text-white mb-1">Detecting Footprints</h3>
+                    <p className="text-[10px] text-text-muted font-mono space-y-1 text-center">
+                      FVG → Liquidity Pools → Order Blocks → Confluence
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {smcStatus === "done" && smcResult && (
+                <SMCInsightsPanel result={smcResult} />
               )}
             </>
           )}

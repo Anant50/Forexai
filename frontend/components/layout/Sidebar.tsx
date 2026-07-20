@@ -16,6 +16,7 @@ import {
   ShieldAlert, 
   LogOut,
   ChevronLeft,
+  ChevronRight,
   TrendingDown,
   ScanSearch,
   Network
