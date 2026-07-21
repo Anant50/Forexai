@@ -40,6 +40,7 @@ export default function Sidebar() {
     { name: "Dashboard",         href: "/",              icon: LayoutDashboard },
     { name: "Master AI Engine",  href: "/ai-dashboard",  icon: BrainCircuit },
     { name: "XAI Analytics",     href: "/xai",           icon: FlaskConical },
+    { name: "Indicators",        href: "/indicators",    icon: Activity },
     { name: "Live Charts",       href: "/charts/EUR_USD",icon: TrendingUp },
     { name: "Chart Image Analysis", href: "/analysis/image", icon: ScanSearch },
     { name: "MTF Analysis",      href: "/mtf",           icon: Network },

@@ -9,6 +9,7 @@ import type { SMCAnalysis } from "./smc";
 import { runAutoAnalysis } from "./engine";
 import { runPatternAnalysis } from "./patterns";
 import { runSMCAnalysis } from "./smc";
+import { runIndicatorEngine, type IndicatorAnalysis } from "./indicators/engine";
 
 // ─── TYPES ────────────────────────────────────────────────────────
 export interface EngineWeights {
@@ -40,6 +41,8 @@ export interface DecisionResult {
     mtfScore: number;        // -1.0 to 1.0
     indicatorScore: number;  // -1.0 to 1.0
   };
+  
+  indicatorAnalysis?: IndicatorAnalysis;
   
   signal: {
     action: "BUY" | "SELL" | "WAIT";
@@ -77,6 +80,7 @@ export function executeMasterDecision(
   const taRes = runAutoAnalysis(data, pair, timeframe, mtfDataSets);
   const patRes = runPatternAnalysis(data, pair, timeframe);
   const smcRes = runSMCAnalysis(data, pair, timeframe);
+  const indRes = runIndicatorEngine(data);
   
   // 2. Normalize Outputs to -1.0 (Bear) to +1.0 (Bull) Scale
   
@@ -102,8 +106,8 @@ export function executeMasterDecision(
   const mtfAgreements = mtfScores.reduce((acc, m) => acc + (m.bias === "BULLISH" ? m.strength : m.bias === "BEARISH" ? -m.strength : 0), 0);
   const mtfNorm = Math.max(-1, Math.min(1, mtfAgreements / Math.max(1, mtfScores.length)));
   
-  // --- Indicators / Structure (Approximated from TA Scenarios) ---
-  const indNorm = (taRes.scenarios.bullish - taRes.scenarios.bearish) / 100;
+  // --- Indicators ---
+  const indNorm = indRes.overallScore; // Comes pre-normalized from -1.0 to 1.0
   
   // 3. Apply Bayesian Fusion Weighting
   const weightedFusion = 
@@ -150,6 +154,11 @@ export function executeMasterDecision(
   if (weights.patterns > 0 && patRes.patterns.length > 0) {
       explanation.push(`A primary ${patRes.patterns[0].name} detected with ${patRes.patterns[0].qualityScore}% algorithmic confidence.`);
   }
+
+  if (indRes.overallScore !== 0) {
+      const bias = indRes.overallScore > 0 ? "BULLISH" : "BEARISH";
+      explanation.push(`Technical indicator analysis is ${bias} with a ${Math.abs(indRes.overallScore*100).toFixed(0)}% vector weight. State: ${indRes.state.replace("_", " ")}.`);
+  }
   
   if (masterScore < 50) {
       explanation.push("CONTRADICTION DETECTED: Some engines point opposite to others (e.g., MTF opposes SMC). System outputs WAIT directive to preserve capital.");
@@ -190,6 +199,7 @@ export function executeMasterDecision(
       masterBias: biasText,
       probabilities: { bullish, sideways, bearish },
       breakdown: { taScore: taNorm, patternScore: patNorm, smcScore: smcNorm, mtfScore: mtfNorm, indicatorScore: indNorm },
+      indicatorAnalysis: indRes,
       signal,
       explanation
   };
