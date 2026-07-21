@@ -10,6 +10,7 @@ import { runAutoAnalysis } from "./engine";
 import { runPatternAnalysis } from "./patterns";
 import { runSMCAnalysis } from "./smc";
 import { runIndicatorEngine, type IndicatorAnalysis } from "./indicators/engine";
+import { evaluateTradeRisk, type EnrichedTradeSetup } from "./risk/engine";
 
 // ─── TYPES ────────────────────────────────────────────────────────
 export interface EngineWeights {
@@ -54,6 +55,8 @@ export interface DecisionResult {
     rr: string;
     riskLevel: "LOW" | "MEDIUM" | "HIGH" | "EXTREME";
   };
+  
+  riskProfile?: EnrichedTradeSetup | null;
   
   explanation: string[];
 }
@@ -193,7 +196,12 @@ export function executeMasterDecision(
       }
   }
   
-  return {
+  // 6. Risk Management Evaluation
+  // In a real DB environment, this would pull the user's authentic risk profile.
+  // For demonstration, we use a standard 1% risk on a $10,000 account.
+  const baseProfile = { accountBalance: 10000, baseCurrency: "USD", riskPercent: 1.0, minRR: 1.5 };
+  
+  let tempDecision = {
       pair, timeframe, analyzedAt: Date.now(),
       masterScore,
       masterBias: biasText,
@@ -203,4 +211,9 @@ export function executeMasterDecision(
       signal,
       explanation
   };
+  
+  // Inject risk profile directly into the output
+  const riskProfile = evaluateTradeRisk(tempDecision as DecisionResult, baseProfile, []);
+
+  return { ...tempDecision, riskProfile };
 }

@@ -20,7 +20,8 @@ import {
   TrendingDown,
   ScanSearch,
   Network,
-  FlaskConical
+  FlaskConical,
+  Calculator
 } from "lucide-react";
 
 interface SidebarItem {
@@ -41,6 +42,7 @@ export default function Sidebar() {
     { name: "Master AI Engine",  href: "/ai-dashboard",  icon: BrainCircuit },
     { name: "XAI Analytics",     href: "/xai",           icon: FlaskConical },
     { name: "Indicators",        href: "/indicators",    icon: Activity },
+    { name: "Risk Engine",       href: "/risk",          icon: Calculator },
     { name: "Live Charts",       href: "/charts/EUR_USD",icon: TrendingUp },
     { name: "Chart Image Analysis", href: "/analysis/image", icon: ScanSearch },
     { name: "MTF Analysis",      href: "/mtf",           icon: Network },
